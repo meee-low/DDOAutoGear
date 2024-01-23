@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from re import A
 import typing
 from enum import Enum, auto
 import xml.etree.ElementTree as ET
@@ -214,6 +215,13 @@ class ItemEffect:
                        empty_if_none(other.skill), empty_if_none(other.school), empty_if_none(other.tactical))
         return self_tuple < other_tuple
 
+class ArmorType(TitleStrEnum):
+    CLOTH = auto()
+    LIGHT = auto()
+    MEDIUM = auto()
+    HEAVY = auto()
+    DOCENT = auto()
+
 @dataclass(frozen = True)
 class Item:
     name: str
@@ -221,11 +229,16 @@ class Item:
     effects: list[ItemEffect]
     equipment_slot: list[GearSlot]
     minimum_level: int
+    armor: Optional[ArmorType] = None
+    weapon: Optional[str] = None
 
     def __str__(self) -> str:
         result = f"{self.name}"
         slot = self.equipment_slot[0].value if len(self.equipment_slot) == 1 else " or ".join(slot.value for slot in self.equipment_slot)
         result += f"\n  Equips to: {slot}"
+        type_ = self.armor if self.armor is not None else self.weapon if self.weapon is not None else None
+        if type_ is not None:
+            result += f"\n  Type: {type_}"
         result += f"\n  Drops from: {self.drop_location}"
         result += f"\n  ML: {self.minimum_level}"
         result += f"\n  Effects:"
@@ -259,7 +272,12 @@ class Item:
         assert xml_ml is not None
         minimum_level = int(xml_ml)
 
-        return cls(name, drop_location, effects, equipment_slot, minimum_level)
+        armor_xml = get_content_of_xml_or_none(root, 'Armor')
+        armor = ArmorType(armor_xml) if armor_xml is not None else None
+
+        weapon = get_content_of_xml_or_none(root, 'Weapon')
+
+        return cls(name, drop_location, effects, equipment_slot, minimum_level, armor, weapon)
 
 
     def is_two_handed_weapon(self) -> bool:
